@@ -6,7 +6,7 @@ import { UploadIcon, ProcessIcon } from './components/Icons';
 import ChatAssistant from './components/ChatAssistant';
 import ResultTable from './components/ResultTable';
 
-// --- UTILS (Đưa vào nội bộ để tránh lỗi import trên Preview) ---
+// --- UTILS (Định nghĩa nội bộ để tránh lỗi import module) ---
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('vi-VN').format(value);
@@ -28,7 +28,6 @@ const extractFromFile = async (file: File): Promise<{ text: string | null; image
                     
                     for (let i = 1; i <= pdf.numPages; i++) {
                         const page = await pdf.getPage(i);
-                        // Scale 2.5 đủ cho OCR chất lượng cao mà không gây nặng bộ nhớ
                         const viewport = page.getViewport({ scale: 2.5 }); 
                         const canvas = document.createElement('canvas');
                         const context = canvas.getContext('2d');
@@ -38,7 +37,6 @@ const extractFromFile = async (file: File): Promise<{ text: string | null; image
 
                         await page.render({ canvasContext: context, viewport: viewport }).promise;
                         
-                        // Use PNG for lossless image quality
                         const dataUrl = canvas.toDataURL('image/png'); 
                         const base64Data = dataUrl.split(',')[1];
                         pageImages.push({ mimeType: 'image/png', data: base64Data });
@@ -108,6 +106,7 @@ export default function App() {
     }, [statementContent]);
 
     useEffect(() => {
+        console.log("App Version 2.2.1 Loaded");
         return () => {
             if (progressInterval.current) clearInterval(progressInterval.current);
             if (uploadInterval.current) clearInterval(uploadInterval.current);
@@ -383,8 +382,11 @@ export default function App() {
                     <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-teal-400">
                         Chuyển Đổi Sổ Phụ Ngân Hàng Thành Sổ Kế Toán
                     </h1>
-                    <p className="mt-2 text-gray-600 dark:text-gray-400">
-                        Upload sao kê, kiểm tra số dư và nhận ngay bảng dữ liệu theo chuẩn kế toán.
+                    <p className="mt-2 text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2">
+                        <span>Upload sao kê, kiểm tra số dư và nhận ngay bảng dữ liệu theo chuẩn kế toán.</span>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            v2.2.1 (Live)
+                        </span>
                     </p>
                 </header>
 
@@ -529,7 +531,7 @@ export default function App() {
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
                         <h2 className="text-2xl font-bold mb-4 flex items-baseline">
                             Quy trình làm việc
-                            <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">Version 2.2</span>
+                            <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">Version 2.2.1</span>
                         </h2>
                         <ul className="space-y-4 text-gray-600 dark:text-gray-400">
                             <li className="flex items-start">
