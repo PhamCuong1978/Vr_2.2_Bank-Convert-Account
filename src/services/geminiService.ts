@@ -2,11 +2,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import type { GeminiResponse, AIChatResponse, ChatMessage, Transaction } from '../types';
 
 // Hàm helper để lấy instance của AI một cách an toàn.
-// Việc này ngăn chặn ứng dụng bị crash ngay khi khởi động (màn hình trắng) nếu API_KEY chưa được cấu hình.
 const getAI = () => {
+    // Biến này đã được define trong vite.config.ts từ VITE_API_KEY hoặc API_KEY
     const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-        throw new Error("API_KEY chưa được thiết lập. Vui lòng kiểm tra cấu hình biến môi trường (Environment Variables) trên Vercel.");
+    
+    if (!apiKey || apiKey.includes("undefined")) {
+        console.error("API Key bị thiếu hoặc không hợp lệ:", apiKey);
+        throw new Error("API Key chưa được thiết lập. Trên Vercel, vui lòng vào Settings > Environment Variables và thêm 'VITE_API_KEY'. Sau đó Redeploy lại ứng dụng.");
     }
     return new GoogleGenAI({ apiKey: apiKey });
 };

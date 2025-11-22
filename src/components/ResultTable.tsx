@@ -2,7 +2,12 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { AccountInfo, Transaction } from '../types';
 import { DownloadIcon, CopyIcon, OpenHtmlIcon, MicrophoneIcon } from './Icons';
-import { formatCurrency } from '../utils/formatters';
+
+// --- UTILS (Đưa vào nội bộ để tránh lỗi import trên Preview) ---
+const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('vi-VN').format(value);
+};
+// --- END UTILS ---
 
 interface ResultTableProps {
     accountInfo: AccountInfo;
