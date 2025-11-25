@@ -1,13 +1,13 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import type { GeminiResponse, AIChatResponse, ChatMessage, Transaction } from '../types';
 
 // --- CONFIGURATION ---
-// 1. Gemini Key (Dùng cho OCR hình ảnh)
+// 1. Gemini Key (Dùng cho OCR hình ảnh & Fallback Logic)
 const getGeminiAI = () => {
     const apiKey = process.env.API_KEY;
-    if (!apiKey || apiKey.includes("undefined")) {
+    if (!apiKey || apiKey === "") {
         console.error("Gemini API Key bị thiếu.");
-        throw new Error("Thiếu Google API Key (dùng cho đọc ảnh). Vui lòng thêm 'VITE_API_KEY' vào biến môi trường.");
+        throw new Error("Thiếu Google API Key. Vui lòng kiểm tra biến môi trường VITE_API_KEY.");
     }
     return new GoogleGenAI({ apiKey: apiKey });
 };
@@ -15,10 +15,7 @@ const getGeminiAI = () => {
 // 2. DeepSeek Key (Dùng cho Logic Kế toán & Chat)
 const getDeepSeekKey = () => {
     const key = process.env.DEEPSEEK_API_KEY;
-    if (!key || key.includes("undefined")) {
-        // Fallback: Nếu không có DeepSeek Key, thử dùng Gemini Key (nếu người dùng chưa kịp tạo DeepSeek Key)
-        // Lưu ý: Đây chỉ là logic tạm thời, tốt nhất nên bắt buộc có key riêng.
-        console.warn("Chưa có DEEPSEEK_API_KEY. Vui lòng thêm biến môi trường 'VITE_DEEPSEEK_API_KEY' để sử dụng DeepSeek.");
+    if (!key || key === "") {
         return null;
     }
     return key;
@@ -29,7 +26,7 @@ const callDeepSeek = async (messages: any[], jsonMode: boolean = true) => {
     const apiKey = getDeepSeekKey();
     
     if (!apiKey) {
-        throw new Error("Yêu cầu DEEPSEEK_API_KEY để sử dụng tính năng phân tích nâng cao.");
+        throw new Error("NO_DEEPSEEK_KEY");
     }
 
     try {
@@ -49,21 +46,20 @@ const callDeepSeek = async (messages: any[], jsonMode: boolean = true) => {
         });
 
         if (!response.ok) {
-            const errData = await response.json();
+            const errData = await response.json().catch(() => ({}));
             throw new Error(`DeepSeek API Error: ${errData.error?.message || response.statusText}`);
         }
 
         const data = await response.json();
         return data.choices[0].message.content;
     } catch (error) {
-        console.error("DeepSeek API Call Failed:", error);
+        console.warn("DeepSeek Call Failed, switching to Fallback...", error);
         throw error;
     }
 };
 
 /**
  * Step 1: Extracts raw text from images using GEMINI FLASH (Best for OCR/Vision).
- * DeepSeek hiện tại chưa hỗ trợ upload ảnh trực tiếp tốt bằng Gemini cho tác vụ này.
  */
 export const extractTextFromContent = async (content: { images: { mimeType: string; data: string }[] }): Promise<string> => {
     if (content.images.length === 0) return '';
@@ -97,8 +93,68 @@ export const extractTextFromContent = async (content: { images: { mimeType: stri
     }
 }
 
+// --- GEMINI FALLBACK LOGIC ---
+const responseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    openingBalance: { type: Type.NUMBER },
+    endingBalance: { type: Type.NUMBER },
+    accountInfo: {
+      type: Type.OBJECT,
+      properties: {
+        accountName: { type: Type.STRING },
+        accountNumber: { type: Type.STRING },
+        bankName: { type: Type.STRING },
+        branch: { type: Type.STRING },
+      },
+      required: ["accountName", "accountNumber", "bankName", "branch"],
+    },
+    transactions: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          transactionCode: { type: Type.STRING },
+          date: { type: Type.STRING },
+          description: { type: Type.STRING },
+          debit: { type: Type.NUMBER },
+          credit: { type: Type.NUMBER },
+          fee: { type: Type.NUMBER },
+          vat: { type: Type.NUMBER },
+        },
+        required: ["date", "description", "debit", "credit"],
+      },
+    },
+  },
+  required: ["accountInfo", "transactions", "openingBalance", "endingBalance"],
+};
+
+const processStatementWithGemini = async (text: string): Promise<GeminiResponse> => {
+    console.log("Using Gemini Fallback for Processing...");
+    const ai = getGeminiAI();
+    const prompt = `Bạn là chuyên gia kế toán. Xử lý sao kê sau thành JSON:
+    1. Tách phí/thuế ra khỏi giao dịch gốc.
+    2. Giao dịch Ngân hàng ghi Nợ -> Sổ cái ghi Có (credit).
+    3. Giao dịch Ngân hàng ghi Có -> Sổ cái ghi Nợ (debit).
+    4. Trích xuất số dư đầu/cuối kỳ.
+    Nội dung: ${text}`;
+
+    const modelRequest = {
+      model: "gemini-3-pro-preview", // Use Pro for Logic fallback
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+        temperature: 0,
+      },
+    };
+
+    const response = await ai.models.generateContent(modelRequest);
+    return JSON.parse(response.text || '{}') as GeminiResponse;
+};
+
 /**
- * Step 2: Processes the extracted text using DEEPSEEK V3.
+ * Step 2: Processes the extracted text using DEEPSEEK V3 (with Gemini Fallback).
  */
 export const processStatement = async (content: { text: string; }): Promise<GeminiResponse> => {
     const systemPrompt = `Bạn là Chuyên gia Kế toán Cao cấp (ACCAR). Nhiệm vụ: Chuyển đổi văn bản sao kê ngân hàng thô thành JSON cấu trúc sổ cái.
@@ -128,8 +184,6 @@ export const processStatement = async (content: { text: string; }): Promise<Gemi
 
     QUY TẮC NGHIỆP VỤ (QUAN TRỌNG):
     1. **Tách Phí & Thuế**: Nếu dòng giao dịch có phí/VAT, hãy tách riêng ra khỏi số tiền gốc (\`credit\`).
-       - VD: Giao dịch gốc 10tr, phí 11k (10k phí + 1k VAT).
-       - JSON: { "credit": 10000000, "fee": 10000, "vat": 1000, "debit": 0 }
     2. **Định dạng Số**: Xử lý dấu phân cách ngàn (,) và thập phân (.) theo chuẩn Việt Nam.
     3. **Đảo Nợ/Có**: 
        - Sao kê ghi "C" (Credit/Tiền vào) -> JSON \`debit\` (Tăng tiền).
@@ -139,24 +193,67 @@ export const processStatement = async (content: { text: string; }): Promise<Gemi
     const userPrompt = `Phân tích nội dung sao kê sau và trả về JSON:\n\n${content.text}`;
 
     try {
+        // Ưu tiên dùng DeepSeek
         const jsonString = await callDeepSeek([
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
         ]);
 
         if (!jsonString) throw new Error("DeepSeek trả về rỗng.");
-        
-        // DeepSeek đôi khi trả về markdown ```json ... ```, cần làm sạch
         const cleanJson = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanJson) as GeminiResponse;
-    } catch (error) {
-        console.error("DeepSeek Processing Error:", error);
-        throw new Error("Lỗi xử lý DeepSeek. Vui lòng kiểm tra DEEPSEEK_API_KEY.");
+
+    } catch (error: any) {
+        // Fallback sang Gemini nếu DeepSeek lỗi hoặc không có key
+        if (error.message === "NO_DEEPSEEK_KEY" || error.message.includes("DeepSeek")) {
+            return await processStatementWithGemini(content.text);
+        }
+        throw error;
     }
 };
 
+// --- GEMINI CHAT FALLBACK ---
+const chatResponseSchema = {
+    type: Type.OBJECT,
+    properties: {
+        responseText: { type: Type.STRING },
+        action: { type: Type.STRING },
+        update: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: { index: { type: Type.NUMBER }, field: { type: Type.STRING }, newValue: { type: Type.NUMBER } },
+        },
+        add: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+                transactionCode: { type: Type.STRING }, date: { type: Type.STRING }, description: { type: Type.STRING },
+                debit: { type: Type.NUMBER }, credit: { type: Type.NUMBER }, fee: { type: Type.NUMBER }, vat: { type: Type.NUMBER },
+            },
+        },
+        confirmationRequired: { type: Type.BOOLEAN, nullable: true },
+    },
+    required: ["responseText", "action"],
+};
+
+const chatWithGemini = async (promptParts: any[]): Promise<AIChatResponse> => {
+    console.log("Using Gemini Fallback for Chat...");
+    const ai = getGeminiAI();
+    const modelRequest = {
+        model: "gemini-3-pro-preview",
+        contents: { parts: promptParts },
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: chatResponseSchema,
+            temperature: 0.1,
+        },
+    };
+    const response = await ai.models.generateContent(modelRequest);
+    return JSON.parse(response.text || '{}') as AIChatResponse;
+}
+
 /**
- * Chat Assistant using DEEPSEEK V3.
+ * Chat Assistant using DEEPSEEK V3 (with Gemini Fallback).
  */
 export const chatWithAI = async (
     message: string,
@@ -166,45 +263,47 @@ export const chatWithAI = async (
     image: { mimeType: string; data: string } | null
 ): Promise<AIChatResponse> => {
 
-    // Chuyển đổi lịch sử chat sang định dạng DeepSeek (user/assistant)
-    const formattedHistory = chatHistory.map(msg => ({
-        role: msg.role === 'model' ? 'assistant' : 'user',
-        content: msg.content
-    }));
-
     const systemPrompt = `Bạn là "Trợ lý Kế toán của Anh Cường".
     1. Luôn xưng "Em", gọi "Anh Cường".
-    2. Trả về JSON theo schema sau (KHÔNG trả về text thường):
+    2. Trả về JSON theo schema sau:
     {
-        "responseText": string, // Câu trả lời hội thoại
+        "responseText": string,
         "action": "update" | "undo" | "add" | "query",
         "update": { "index": number, "field": string, "newValue": number } | null,
         "add": { ...Transaction object... } | null,
         "confirmationRequired": boolean
     }
-    3. Nếu Anh Cường muốn sửa/thêm/xóa -> Tạo object update/add tương ứng, đặt confirmationRequired=true.
-    4. Nếu chỉ hỏi -> action="query", confirmationRequired=false.
-    
+    3. Nếu sửa/thêm -> confirmationRequired=true.
     Dữ liệu hiện tại: ${JSON.stringify(currentReport)}`;
 
-    const messages = [
-        { role: "system", content: systemPrompt },
-        ...formattedHistory,
-        { role: "user", content: message } // DeepSeek V3 text-only cho chat logic
-    ];
-
-    // Lưu ý: DeepSeek V3 API hiện tại không hỗ trợ gửi ảnh trực tiếp trong mảng messages như Gemini.
-    // Nếu có ảnh (image), chúng ta chỉ có thể mô tả rằng người dùng đã gửi ảnh.
-    if (image) {
-        messages[messages.length - 1].content += "\n[Người dùng có đính kèm một hình ảnh, nhưng Em chỉ xử lý được văn bản lúc này.]";
-    }
-
     try {
-        const jsonString = await callDeepSeek(messages, true);
+        // DeepSeek Chat Attempt
+        // Lưu ý: DeepSeek không nhận ảnh, nếu có ảnh -> Fallback ngay sang Gemini
+        if (image) {
+            throw new Error("IMAGE_DETECTED");
+        }
+
+        const formattedHistory = chatHistory.map(msg => ({
+            role: msg.role === 'model' ? 'assistant' : 'user',
+            content: msg.content
+        }));
+
+        const jsonString = await callDeepSeek([
+            { role: "system", content: systemPrompt },
+            ...formattedHistory,
+            { role: "user", content: message }
+        ], true);
+
         const cleanJson = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanJson) as AIChatResponse;
-    } catch (error) {
-        console.error("DeepSeek Chat Error:", error);
-        return { responseText: "DeepSeek đang bận, Anh Cường thử lại sau nhé.", action: 'query' };
+
+    } catch (error: any) {
+        // Fallback Logic
+        const geminiPromptParts: any[] = [{ text: systemPrompt + `\nLịch sử chat: ${JSON.stringify(chatHistory)}\nYêu cầu: ${message}` }];
+        if (image) {
+            geminiPromptParts.push({ text: "Hình ảnh đính kèm:" });
+            geminiPromptParts.push({ inlineData: { mimeType: image.mimeType, data: image.data } });
+        }
+        return await chatWithGemini(geminiPromptParts);
     }
 };

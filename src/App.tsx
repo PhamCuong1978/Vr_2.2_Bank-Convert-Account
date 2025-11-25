@@ -106,7 +106,7 @@ export default function App() {
     }, [statementContent]);
 
     useEffect(() => {
-        console.log("App Version 2.4 (DeepSeek Hybrid) Loaded");
+        console.log("App Version 2.5 (DeepSeek Integration) Loaded");
         return () => {
             if (progressInterval.current) clearInterval(progressInterval.current);
             if (uploadInterval.current) clearInterval(uploadInterval.current);
@@ -384,8 +384,8 @@ export default function App() {
                     </h1>
                     <p className="mt-2 text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2">
                         <span>Upload sao kê, kiểm tra số dư và nhận ngay bảng dữ liệu theo chuẩn kế toán.</span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            v2.4 (DeepSeek Hybrid)
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border border-purple-200 dark:border-purple-700">
+                            v2.5 (DeepSeek AI)
                         </span>
                     </p>
                 </header>
@@ -531,7 +531,7 @@ export default function App() {
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
                         <h2 className="text-2xl font-bold mb-4 flex items-baseline">
                             Quy trình làm việc
-                            <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">Version 2.3</span>
+                            <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">Version 2.5</span>
                         </h2>
                         <ul className="space-y-4 text-gray-600 dark:text-gray-400">
                             <li className="flex items-start">
