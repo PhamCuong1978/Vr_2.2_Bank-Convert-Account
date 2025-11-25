@@ -106,7 +106,7 @@ export default function App() {
     }, [statementContent]);
 
     useEffect(() => {
-        console.log("App Version 2.3 Loaded - Force Refresh");
+        console.log("App Version 2.4 (DeepSeek Hybrid) Loaded");
         return () => {
             if (progressInterval.current) clearInterval(progressInterval.current);
             if (uploadInterval.current) clearInterval(uploadInterval.current);
@@ -172,7 +172,7 @@ export default function App() {
 
         setLoadingState('extracting');
         setError(null);
-        startProgress("Đang trích xuất văn bản từ file...");
+        startProgress("Gemini Flash đang đọc ảnh...");
 
         try {
             const extractionPromises = selectedFiles.map((file: File) => extractFromFile(file));
@@ -238,7 +238,7 @@ export default function App() {
         setResult(null);
         setBalanceMismatchWarning(null);
         setHistory([]); // Reset history on new processing
-        startProgress("AI đang phân tích nghiệp vụ...");
+        startProgress("DeepSeek V3 đang phân tích nghiệp vụ...");
 
         try {
             const data = await processStatement({ text: statementContent });
@@ -340,8 +340,8 @@ export default function App() {
 
     const getLoadingMessage = () => {
         switch(loadingState) {
-            case 'extracting': return `Đang trích xuất văn bản... ${Math.round(progress)}%`;
-            case 'processing': return `AI đang phân tích... ${Math.round(progress)}%`;
+            case 'extracting': return `Gemini Flash đang đọc ảnh... ${Math.round(progress)}%`;
+            case 'processing': return `DeepSeek V3 đang phân tích... ${Math.round(progress)}%`;
             default: return '';
         }
     }
@@ -384,8 +384,8 @@ export default function App() {
                     </h1>
                     <p className="mt-2 text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2">
                         <span>Upload sao kê, kiểm tra số dư và nhận ngay bảng dữ liệu theo chuẩn kế toán.</span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            v2.3 (Stable)
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            v2.4 (DeepSeek Hybrid)
                         </span>
                     </p>
                 </header>
