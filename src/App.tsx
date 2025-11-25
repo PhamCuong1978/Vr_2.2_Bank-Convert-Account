@@ -106,7 +106,7 @@ export default function App() {
     }, [statementContent]);
 
     useEffect(() => {
-        console.log("App Version 2.2.1 Loaded");
+        console.log("App Version 2.3 Loaded - Force Refresh");
         return () => {
             if (progressInterval.current) clearInterval(progressInterval.current);
             if (uploadInterval.current) clearInterval(uploadInterval.current);
@@ -384,8 +384,8 @@ export default function App() {
                     </h1>
                     <p className="mt-2 text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2">
                         <span>Upload sao kê, kiểm tra số dư và nhận ngay bảng dữ liệu theo chuẩn kế toán.</span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            v2.2.1 (Live)
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            v2.3 (Stable)
                         </span>
                     </p>
                 </header>
@@ -531,7 +531,7 @@ export default function App() {
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
                         <h2 className="text-2xl font-bold mb-4 flex items-baseline">
                             Quy trình làm việc
-                            <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">Version 2.2.1</span>
+                            <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">Version 2.3</span>
                         </h2>
                         <ul className="space-y-4 text-gray-600 dark:text-gray-400">
                             <li className="flex items-start">

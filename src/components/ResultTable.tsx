@@ -25,6 +25,7 @@ const ResultTable: React.FC<ResultTableProps> = ({ accountInfo, transactions, op
     const recognitionRef = useRef<any>(null);
 
     useEffect(() => {
+        console.log("ResultTable Mounted - v2.3"); // Log for debugging cache
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) {
             console.warn("Speech Recognition not supported in this browser.");
